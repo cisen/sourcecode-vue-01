@@ -83,6 +83,7 @@ var app = new Vue({
 
   // methods that implement data logic.
   // note there's no DOM manipulation here at all.
+  // 然后aa决定只发改域名的hotfix，不发dev-backup。结果hotfix发上去，隐私声明仍然无法正常。安卓调试最后发现是安卓的问题
   methods: {
     addTodo: function () {
       var value = this.newTodo && this.newTodo.trim()
