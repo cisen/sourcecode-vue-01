@@ -4838,6 +4838,7 @@ function initComputed (vm, computed) {
 
     if (!isSSR) {
       // create internal watcher for the computed property.
+      // 将该函数绑定到data和props监控下面
       watchers[key] = new Watcher(
         vm,
         getter || noop,
@@ -4849,6 +4850,7 @@ function initComputed (vm, computed) {
     // component-defined computed properties are already defined on the
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
+    // // 将对应函数名的key绑定到vm的this下面，好让模板解析直接获取该函数名
     if (!(key in vm)) {
       defineComputed(vm, key, userDef);
     } else {
@@ -4860,7 +4862,7 @@ function initComputed (vm, computed) {
     }
   }
 }
-
+// 将对应函数名的key绑定到vm的this下面，好让模板解析直接获取该函数名
 function defineComputed (
   target,
   key,
@@ -5001,6 +5003,7 @@ function stateMixin (Vue) {
     options
   ) {
     var vm = this;
+    // 这里会深便利递归绑定
     if (isPlainObject(cb)) {
       return createWatcher(vm, expOrFn, cb, options)
     }
@@ -10149,9 +10152,11 @@ function parseFor (exp) {
 }
 
 function processIf (el) {
+  // 提取后面的表达式
   var exp = getAndRemoveAttr(el, 'v-if');
   if (exp) {
     el.if = exp;
+    // 将表达式添加到el.ifConditions数组里面
     addIfCondition(el, {
       exp: exp,
       block: el
