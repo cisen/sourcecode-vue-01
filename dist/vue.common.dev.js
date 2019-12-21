@@ -5835,7 +5835,7 @@ function registerRef (vnode, isRemoval) {
 var emptyNode = new VNode('', {}, []);
 
 var hooks = ['create', 'activate', 'update', 'remove', 'destroy'];
-
+// 判断key/tag
 function sameVnode (a, b) {
   return (
     a.key === b.key && (
@@ -5967,7 +5967,7 @@ function createPatchFunction (backend) {
           );
         }
       }
-
+      // 创建真实dom
       vnode.elm = vnode.ns
         ? nodeOps.createElementNS(vnode.ns, tag)
         : nodeOps.createElement(tag, vnode);
@@ -6209,31 +6209,40 @@ function createPatchFunction (backend) {
     {
       checkDuplicateKeys(newCh);
     }
-
+    // 循环子节点列表队列
     while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+      //isUndef 是判断值是否等于undefined或者null
+      // 如果旧节点的开始是undefined，旧节点数组指向下一个
       if (isUndef(oldStartVnode)) {
         oldStartVnode = oldCh[++oldStartIdx]; // Vnode has been moved left
+        // 如果旧节点结束是undefined，旧节点最后一个节点指向-1
       } else if (isUndef(oldEndVnode)) {
         oldEndVnode = oldCh[--oldEndIdx];
+        // 新旧节点开始钱比较结果一样，则使用patch深比较或递归updateChildren
       } else if (sameVnode(oldStartVnode, newStartVnode)) {
         patchVnode(oldStartVnode, newStartVnode, insertedVnodeQueue, newCh, newStartIdx);
         oldStartVnode = oldCh[++oldStartIdx];
         newStartVnode = newCh[++newStartIdx];
+        // 新旧节点尾节点比较结果一样，则使用patch深比较或递归updateChildren
       } else if (sameVnode(oldEndVnode, newEndVnode)) {
         patchVnode(oldEndVnode, newEndVnode, insertedVnodeQueue, newCh, newEndIdx);
         oldEndVnode = oldCh[--oldEndIdx];
         newEndVnode = newCh[--newEndIdx];
+        // // 当oldStartVnode，newEndVnode值得对比，说明oldStartVnode已经跑到了后面，那么就将oldStartVnode.el移到oldEndVnode.el的后边。oldStartIdx+1，newEndIdx-1；
       } else if (sameVnode(oldStartVnode, newEndVnode)) { // Vnode moved right
         patchVnode(oldStartVnode, newEndVnode, insertedVnodeQueue, newCh, newEndIdx);
         canMove && nodeOps.insertBefore(parentElm, oldStartVnode.elm, nodeOps.nextSibling(oldEndVnode.elm));
         oldStartVnode = oldCh[++oldStartIdx];
         newEndVnode = newCh[--newEndIdx];
+        // 当oldEndVnode，newStartVnode值得对比，说明oldEndVnode已经跑到了前面，那么就将oldEndVnode.el移到oldStartVnode.el的前边。oldEndIdx-1，newStartIdx+1；
       } else if (sameVnode(oldEndVnode, newStartVnode)) { // Vnode moved left
         patchVnode(oldEndVnode, newStartVnode, insertedVnodeQueue, newCh, newStartIdx);
         canMove && nodeOps.insertBefore(parentElm, oldEndVnode.elm, oldStartVnode.elm);
         oldEndVnode = oldCh[--oldEndIdx];
         newStartVnode = newCh[++newStartIdx];
       } else {
+        // 通过newStartVnode.key 看是否能在oldVnode中找到，如果没有则新建节点，如果有则对比新旧节点中相同key的Node，newStartIdx+1。
+        //看节点是否有key 没有则新建一个 有的话可以复用
         if (isUndef(oldKeyToIdx)) { oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx); }
         idxInOld = isDef(newStartVnode.key)
           ? oldKeyToIdx[newStartVnode.key]
@@ -6254,6 +6263,12 @@ function createPatchFunction (backend) {
         newStartVnode = newCh[++newStartIdx];
       }
     }
+    /**
+     * 当循环结束时，这时候会有两种情况。
+
+oldStartIdx > oldEndIdx，可以认为oldVnode对比完毕，当然也有可能 newVnode也刚好对比完，一样归为此类。此时newStartIdx和newEndIdx之间的vnode是新增的，调用addVnodes，把他们全部插进before的后边。
+newStartIdx > newEndIdx，可以认为newVnode先遍历完，oldVnode还有节点。此时oldStartIdx和oldEndIdx之间的vnode在新的子节点里已经不存在了，调用removeVnodes将它们从dom里删除。
+     */
     if (oldStartIdx > oldEndIdx) {
       refElm = isUndef(newCh[newEndIdx + 1]) ? null : newCh[newEndIdx + 1].elm;
       addVnodes(parentElm, refElm, newCh, newStartIdx, newEndIdx, insertedVnodeQueue);
@@ -6286,7 +6301,21 @@ function createPatchFunction (backend) {
       if (isDef(c) && sameVnode(node, c)) { return i }
     }
   }
+  /**
+   *
+   * 判断Vnode和oldVnode是否相同，如果是，那么直接return；
+      如果他们都有文本节点并且不相等，那么将更新为Vnode的文本节点。
+      如果oldVnode有子节点而Vnode没有，则删除el的子节点
+      如果oldVnode没有子节点而Vnode有，则将Vnode的子节点真实化之后添加到el
+      如果两者都有子节点，则执行updateChildren函数比较子节点，而这个函数也是diff逻辑最多的一步
 
+   * @param {*} oldVnode
+   * @param {*} vnode
+   * @param {*} insertedVnodeQueue
+   * @param {*} ownerArray
+   * @param {*} index
+   * @param {*} removeOnly
+   */
   function patchVnode (
     oldVnode,
     vnode,
