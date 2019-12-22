@@ -714,21 +714,28 @@ var uid = 0;
 // Dep 是一个类，用于依赖收集和派发更新，也就是存放watcher实例和触发watcher实例上的update。
 // Watcher 也是一个类，用于初始化 数据的watcher实例。它的原型上有一个 update 方法，用于派发更新。
 // 一句话概括：Dep是watcher实例的管理者。类似观察者模式的实现。
+
+// 总结就是每一个data的属性都有一个Dep对象用于管理很多个watcher
 var Dep = function Dep () {
   this.id = uid++;
   this.subs = [];
 };
 
 Dep.prototype.addSub = function addSub (sub) {
+  // 这里的sub就是watch
   this.subs.push(sub);
 };
 
 Dep.prototype.removeSub = function removeSub (sub) {
   remove(this.subs, sub);
 };
-
+// 把对data的观察插入全局的Dep.target
+// 将data属性自己的watch管理者塞入全局的Dep.target
 Dep.prototype.depend = function depend () {
   if (Dep.target) {
+    // target上存了很多Dep。注意这里的this是每一个data属性的Dep实例后的dep
+    // watcher判断是否已经被存入该dep再决定是否存入该dep
+    // 每个watcher可能对应多个dep
     Dep.target.addDep(this);
   }
 };
@@ -743,6 +750,7 @@ Dep.prototype.notify = function notify () {
     subs.sort(function (a, b) { return a.id - b.id; });
   }
   for (var i = 0, l = subs.length; i < l; i++) {
+    // 执行watch的update
     subs[i].update();
   }
 };
@@ -942,8 +950,11 @@ var Observer = function Observer (value) {
  * getter/setters. This method should only be called when
  * value type is Object.
  */
+// obj第一次是data
 Observer.prototype.walk = function walk (obj) {
   var keys = Object.keys(obj);
+  // 遍历所有的对象，浅比较观察data下面的对象
+  // 创建data每一个属性的dep实例并存入全局Dep.target
   for (var i = 0; i < keys.length; i++) {
     defineReactive$$1(obj, keys[i]);
   }
@@ -1019,6 +1030,7 @@ function defineReactive$$1 (
   customSetter,
   shallow
 ) {
+  // 创建属于data下面属性的唯一dep
   var dep = new Dep();
 
   var property = Object.getOwnPropertyDescriptor(obj, key);
@@ -1034,12 +1046,14 @@ function defineReactive$$1 (
   }
 
   var childOb = !shallow && observe(val);
+  // 定义data下面的数据的get/set，并且插入全局的Dep.target
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
       var value = getter ? getter.call(obj) : val;
       if (Dep.target) {
+        // 将自己的watch管理者塞入全局的Dep.target
         dep.depend();
         if (childOb) {
           childOb.dep.depend();
@@ -4512,6 +4526,7 @@ var Watcher = function Watcher (
         // 将 当前 watcher 实例，赋值给 Dep.target 静态属性
         // 也就是说 执行了这行代码，Dep.target 的值就是 当前 watcher 实例
         // 并将 Dep.target 入栈 ，存入 targetStack 数组中
+        // 这里的watch会被存储到全局的Dep.target
 Watcher.prototype.get = function get () {
   pushTarget(this);
   var value;
@@ -4546,6 +4561,7 @@ Watcher.prototype.get = function get () {
     // watcher.addDep(dep) 会执行 dep.addSub(watcher)
     // 将当前 watcher 实例 添加到 dep 的 subs 数组 中，也就是收集依赖
     // dep.depend 和 这个 addDep 方法，有好几个 this， 可能有点绕。
+    // 每个watcher可能对应多个dep，所以需要根据id插入dep
 Watcher.prototype.addDep = function addDep (dep) {
   var id = dep.id;
           // 下面两个 if 条件都是去重的作用，我们可以暂时不考虑它们
@@ -4653,6 +4669,7 @@ Watcher.prototype.evaluate = function evaluate () {
 /**
  * Depend on all deps collected by this watcher.
  */
+// 订阅所有dep
 Watcher.prototype.depend = function depend () {
   var i = this.deps.length;
   while (i--) {
