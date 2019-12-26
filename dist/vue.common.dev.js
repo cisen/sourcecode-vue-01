@@ -5324,14 +5324,22 @@ function initAssetRegisters (Vue) {
         if (type === 'component') {
           validateComponentName(id);
         }
+        // 如果是一个组件
         if (type === 'component' && isPlainObject(definition)) {
           definition.name = definition.name || id;
+          // 将自定义组件合并Vue全局对象（_base）
+          // 这个extend函数大有乾坤,可以搜索Vue.extend,或者.extend(
+          // 会生产一个新的Vue对象，而且构建函数会调用_init函数从新初始化一个vue实例
+          // 所以html解析出新组件的时候，只需要new一下，就会生成一个几乎跟全局vue实例一样的vue实例
+          // 这个实例化是在createComponent里面调用vnode = new VNode实现的
           definition = this.options._base.extend(definition);
         }
         if (type === 'directive' && typeof definition === 'function') {
           definition = { bind: definition, update: definition };
         }
+        // 最后创建的组件会被挂在this.options[components][componentid]下面
         this.options[type + 's'][id] = definition;
+        // 最后返回自定义的组件配置合并Vue对象后的组件定义
         return definition
       }
     };
